@@ -23,6 +23,16 @@ PowerShell-Script zur Erstellung von Entra ID (ehemals Azure AD) App-Registrieru
 - PowerShell 5.1 oder höher
 - Microsoft.Graph PowerShell SDK
 
+### Automatisierung / Unattended Run
+
+Für eine spätere automatische Ausführung sollte das Script **nicht** mit einem normalen Benutzerkonto betrieben werden. Best Practice im M365-Umfeld ist eine **App-Identität** mit App-only-Berechtigungen:
+
+- **In Azure gehostet**: **Managed Identity** bevorzugen, da keine Secrets oder Zertifikate verwaltet werden müssen.
+- **Außerhalb von Azure**: **App Registration + Zertifikat** statt Benutzername/Passwort oder Client Secret.
+- **In CI/CD**: **Workload Identity Federation** ist die saubere Secret-less-Variante.
+
+Das aktuelle Script ist noch auf interaktive Nutzung ausgelegt und muss für einen echten Hintergrundlauf entsprechend umgestellt werden.
+
 ### Installation der Module
 
 ```powershell
