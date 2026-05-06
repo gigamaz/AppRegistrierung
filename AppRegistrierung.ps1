@@ -28,6 +28,19 @@ param()
 $ErrorActionPreference = "Stop"
 $ScriptVersion = "1.3"
 $ScriptBuild = Get-Date -Format "yyyyMMdd_HHmmss"
+$TemplatePath = Join-Path $PSScriptRoot "template.md"
+$UseTemplateDocument = $true
+
+if (-not (Test-Path -LiteralPath $TemplatePath)) {
+    Write-Warning "template.md wurde lokal nicht gefunden: $TemplatePath"
+    $continueWithoutTemplate = Read-Host "Ohne Template fortfahren? [J/N] (ENTER = N)"
+    if ([string]::IsNullOrWhiteSpace($continueWithoutTemplate)) { $continueWithoutTemplate = "N" }
+    if ($continueWithoutTemplate -notmatch '^[JjYy]') {
+        Write-Error "Abbruch, da template.md fehlt."
+        exit 1
+    }
+    $UseTemplateDocument = $false
+}
 
 # ==============================================================
 # Hilfsfunktionen
@@ -97,12 +110,11 @@ function Write-UserTemplateDocument {
         [string]$TemporaryPassword
     )
 
-    $templatePath = Join-Path $PSScriptRoot "template.md"
-    if (-not (Test-Path -LiteralPath $templatePath)) {
-        throw "template.md nicht gefunden: $templatePath"
+    if (-not $UseTemplateDocument) {
+        return ""
     }
 
-    $content = Get-Content -LiteralPath $templatePath -Raw
+    $content = Get-Content -LiteralPath $TemplatePath -Raw -Encoding UTF8
     $displayName = if ($User.DisplayName) { $User.DisplayName } else { "" }
     $mailNickname = if ($User.MailNickname) { $User.MailNickname } else { ($User.UserPrincipalName -split '@')[0] }
     $safeName = $mailNickname -replace '[^a-zA-Z0-9._-]', '_'
@@ -116,7 +128,8 @@ function Write-UserTemplateDocument {
     $rendered += $parts[$values.Count]
 
     $outputPath = Join-Path (Get-Location) "Benutzer_${ScriptVersion}_${ScriptBuild}_${safeName}.md"
-    Set-Content -Path $outputPath -Value $rendered -Encoding UTF8
+    $utf8Bom = [System.Text.UTF8Encoding]::new($true)
+    [System.IO.File]::WriteAllText($outputPath, $rendered, $utf8Bom)
 
     return $outputPath
 }
