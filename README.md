@@ -111,6 +111,15 @@ Die CSV-Datei muss exakt diese Struktur haben:
 
 ### Beispiel CSV (Semikolon-getrennt)
 
+Minimal gültig:
+
+```csv
+AppName;OwnerUPN
+MeineApp;max.muster@contoso.com
+```
+
+Mit optionalen Feldern:
+
 ```csv
 AppName;OwnerUPN;Description;SignInAudience
 MeineApp;max.muster@contoso.com;Test App;AzureADMyOrg
