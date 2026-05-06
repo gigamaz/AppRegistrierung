@@ -8,7 +8,8 @@ PowerShell-Script zur Erstellung von Entra ID (ehemals Azure AD) App-Registrieru
 
 - **Einzel- und Batch-Modus**: Interaktive Erstellung oder Massenverarbeitung via CSV
 - **Automatische Validierung**: Prüft vor der Erstellung, ob die App bereits existiert
-- **Owner-Verwaltung**: Sucht Benutzer per Wildcard und bietet Auswahlvorschläge
+- **Owner-Verwaltung**: Sucht Benutzer per Suche und bietet Auswahlvorschläge
+- **User-Erstellung**: Falls kein Owner gefunden wird, kann direkt ein neuer Benutzer angelegt werden
 - **Tenant-Auswahl**: Automatische Erkennung mit Bestätigung
 - **E-Mail-Benachrichtigung**: Optionaler Versand bei erfolgreichem Abschluss
 - **CSV-Export**: Ergebnisbericht für Batch-Verarbeitung
@@ -27,6 +28,7 @@ Install-Module Microsoft.Graph -Scope CurrentUser
 Erforderliche Module (werden automatisch geladen):
 - Microsoft.Graph.Applications
 - Microsoft.Graph.Users
+- Microsoft.Graph.Users.Actions
 - Microsoft.Graph.Identity.DirectoryManagement
 
 ## Verwendung
@@ -95,6 +97,7 @@ Das Script benötigt folgende Microsoft Graph Berechtigungen:
 
 - `Application.ReadWrite.All` - Erstellen von App-Registrierungen
 - `User.Read.All` - Suche nach Benutzern/Ownern
+- `User.ReadWrite.All` - Erstellen neuer Benutzer
 - `Directory.Read.All` - Lesen von Tenant-Informationen
 - `Mail.Send` - E-Mail-Versand (optional)
 

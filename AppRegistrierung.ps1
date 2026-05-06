@@ -1,4 +1,4 @@
-#Requires -Modules Microsoft.Graph.Applications, Microsoft.Graph.Users, Microsoft.Graph.Identity.DirectoryManagement
+#Requires -Modules Microsoft.Graph.Applications, Microsoft.Graph.Users, Microsoft.Graph.Users.Actions, Microsoft.Graph.Identity.DirectoryManagement
 
 <#
 .SYNOPSIS
@@ -35,14 +35,55 @@ $ScriptVersion = "1.2"
 function Get-TenantInfo {
     try {
         $org = Get-MgOrganization -ErrorAction Stop | Select-Object -First 1
+        $defaultDomain = $org.VerifiedDomains | Where-Object { $_.IsDefault } | Select-Object -First 1
         return [PSCustomObject]@{
             DisplayName = $org.DisplayName
             Id          = $org.Id
-            Domain      = ($org.VerifiedDomains | Where-Object { $_.IsDefault } | Select-Object -First 1).Name
+            Domain      = if ($defaultDomain) { $defaultDomain.Name } else { "" }
         }
     } catch {
         return $null
     }
+}
+
+function Get-MailNickname {
+    param([string]$UserPrincipalName)
+
+    $mailNickname = ($UserPrincipalName -split '@')[0]
+    $mailNickname = $mailNickname -replace '[^a-zA-Z0-9._-]', ''
+
+    if ([string]::IsNullOrWhiteSpace($mailNickname)) {
+        $mailNickname = "user$(Get-Random -Minimum 1000 -Maximum 9999)"
+    }
+
+    if ($mailNickname.Length -gt 64) {
+        $mailNickname = $mailNickname.Substring(0, 64)
+    }
+
+    return $mailNickname
+}
+
+function New-SecurePassword {
+    param([int]$Length = 16)
+
+    if ($Length -lt 8) {
+        $Length = 8
+    }
+
+    $upper = [char[]](65..90)
+    $lower = [char[]](97..122)
+    $digit = [char[]](48..57)
+    $all   = $upper + $lower + $digit
+
+    $chars = @(
+        ($upper | Get-Random)
+        ($lower | Get-Random)
+        ($digit | Get-Random)
+    )
+
+    $chars += (1..($Length - 3) | ForEach-Object { $all | Get-Random })
+
+    return (-join ($chars | Sort-Object { Get-Random }))
 }
 
 function Test-AppRegistrationExists {
@@ -70,9 +111,22 @@ function Get-TenantUser {
 function Search-TenantUser {
     param([string]$SearchTerm)
     try {
-        $filter = "startswith(displayName,'$SearchTerm') or startswith(mail,'$SearchTerm') or startswith(userPrincipalName,'$SearchTerm')"
-        $results = Get-MgUser -Filter $filter -ErrorAction SilentlyContinue | Select-Object -First 10
-        return $results
+        $term = ($SearchTerm -replace '"', '').Trim()
+        if ([string]::IsNullOrWhiteSpace($term)) {
+            return @()
+        }
+
+        $queries = @(
+            ('"DisplayName:{0}"' -f $term)
+            ('"Mail:{0}"' -f $term)
+            ('"UserPrincipalName:{0}"' -f $term)
+        )
+
+        $results = foreach ($query in $queries) {
+            Get-MgUser -ConsistencyLevel eventual -Count userCount -Search $query -All -Property Id,DisplayName,Mail,UserPrincipalName -ErrorAction SilentlyContinue
+        }
+
+        return $results | Sort-Object Id -Unique | Select-Object -First 10
     } catch {
         return @()
     }
@@ -86,12 +140,8 @@ function New-TenantUser {
     )
     
     $displayName = "$LastName $FirstName (Admin)"
-    # Sicheres Passwort generieren (Groß-, Kleinbuchstaben, Zahlen)
-    $chars = @([char[]](65..90) + [char[]](97..122) + [char[]](48..57))
-    $password = -join (1..16 | ForEach-Object { $chars | Get-Random })
-    if ($password -notmatch '[A-Z]') { $password = ($chars[0..25] | Get-Random) + $password }
-    if ($password -notmatch '[a-z]') { $password = $password.Insert(1, ($chars[26..51] | Get-Random)) }
-    if ($password -notmatch '[0-9]') { $password = $password.Insert(2, ($chars[52..61] | Get-Random)) }
+    $password = New-SecurePassword -Length 16
+    $mailNickname = Get-MailNickname -UserPrincipalName $OnPremUPN
     
     $passwordProfile = @{
         Password = $password
@@ -101,15 +151,16 @@ function New-TenantUser {
     $userParams = @{
         DisplayName       = $displayName
         UserPrincipalName = $OnPremUPN
+        MailNickname      = $mailNickname
         AccountEnabled    = $true
         PasswordProfile   = $passwordProfile
-        Mail              = $OnPremUPN
     }
     
     try {
         $newUser = New-MgUser @userParams -ErrorAction Stop
         Write-Host "  Neuer Benutzer erstellt: $displayName" -ForegroundColor Green
         Write-Host "  UPN: $OnPremUPN" -ForegroundColor Cyan
+        Write-Host "  MailNickname: $mailNickname" -ForegroundColor Cyan
         Write-Host "  Temporäres Passwort: $password" -ForegroundColor Yellow
         return $newUser
     } catch {
@@ -290,6 +341,12 @@ if ($mode -match '^[Bb]') {
         $entries = Import-Csv -Path $csvPath -Delimiter ","
     }
 
+    if (-not $entries -or $entries.Count -eq 0) {
+        Write-Error "CSV enthält keine Datenzeilen."
+        Disconnect-MgGraph
+        exit 1
+    }
+
     $requiredCols = @("AppName", "OwnerUPN")
     foreach ($col in $requiredCols) {
         if ($col -notin $entries[0].PSObject.Properties.Name) {
@@ -461,18 +518,25 @@ if ($created.Count -gt 0) {
         }
         
         try {
-            $message = @{
-                Subject = "App-Registrierung abgeschlossen - $($created.Count) App(s) erstellt"
-                Body = @{
-                    ContentType = "Text"
-                    Content = $mailBody
-                }
-                ToRecipients = @(
-                    @{ EmailAddress = @{ Address = $recipientUPN } }
-                )
-                SaveToSentItems = $true
+            $senderUPN = (Get-MgContext).Account
+            if ([string]::IsNullOrWhiteSpace($senderUPN)) {
+                throw "Kein angemeldeter Benutzer im Graph-Kontext gefunden."
             }
-            Send-MgUserMail -UserId (Get-MgContext).Account -BodyParameter $message -ErrorAction Stop
+
+            $message = @{
+                message = @{
+                    subject = "App-Registrierung abgeschlossen - $($created.Count) App(s) erstellt"
+                    body = @{
+                        contentType = "Text"
+                        content = $mailBody
+                    }
+                    toRecipients = @(
+                        @{ emailAddress = @{ address = $recipientUPN } }
+                    )
+                }
+                saveToSentItems = $true
+            }
+            Send-MgUserMail -UserId $senderUPN -BodyParameter $message -ErrorAction Stop
             Write-Host "E-Mail gesendet an: $recipientUPN" -ForegroundColor Green
         } catch {
             Write-Error "E-Mail-Versand fehlgeschlagen: $($_.Exception.Message)"
