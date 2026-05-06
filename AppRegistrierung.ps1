@@ -507,6 +507,7 @@ $exportCsv = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_${ScriptVersion
 Write-Host ""
 Write-Host "Skript-Ergebnisse exportiert:" -ForegroundColor Green
 Write-Host "  CSV:  $exportCsv"
+Write-Host "  Pfad: $([System.IO.Path]::GetFullPath($exportCsv))"
 Write-Host ""
 
 Disconnect-MgGraph

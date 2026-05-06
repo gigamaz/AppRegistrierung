@@ -116,6 +116,7 @@ Das Script benötigt folgende Microsoft Graph Berechtigungen:
 - **Ergebnis-Export**: Automatischer CSV-Export nach jedem Lauf mit den Kerndaten
 - **Redirect URI**: Optionale Redirect URI im Einzelmodus
 - **Berechtigungen erweitert**: Benötigt nun zusätzlich `User.ReadWrite.All` für User-Erstellung
+- Nach dem Export wird der vollständige Pfad der CSV-Datei angezeigt
 
 ## Versionierung
 
