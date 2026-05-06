@@ -26,7 +26,7 @@
 param()
 
 $ErrorActionPreference = "Stop"
-$ScriptVersion = "1.0"
+$ScriptVersion = "1.2"
 
 # ==============================================================
 # Hilfsfunktionen
@@ -75,6 +75,46 @@ function Search-TenantUser {
         return $results
     } catch {
         return @()
+    }
+}
+
+function New-TenantUser {
+    param(
+        [string]$FirstName,
+        [string]$LastName,
+        [string]$OnPremUPN
+    )
+    
+    $displayName = "$LastName $FirstName (Admin)"
+    # Sicheres Passwort generieren (Groß-, Kleinbuchstaben, Zahlen)
+    $chars = @([char[]](65..90) + [char[]](97..122) + [char[]](48..57))
+    $password = -join (1..16 | ForEach-Object { $chars | Get-Random })
+    if ($password -notmatch '[A-Z]') { $password = $chars[0..25 | Get-Random] + $password }
+    if ($password -notmatch '[a-z]') { $password = $password.Insert(1, $chars[26..51 | Get-Random]) }
+    if ($password -notmatch '[0-9]') { $password = $password.Insert(2, $chars[52..61 | Get-Random]) }
+    
+    $passwordProfile = @{
+        Password = $password
+        ForceChangePasswordNextSignIn = $true
+    }
+    
+    $userParams = @{
+        DisplayName       = $displayName
+        UserPrincipalName = $OnPremUPN
+        AccountEnabled    = $true
+        PasswordProfile   = $passwordProfile
+        Mail              = $OnPremUPN
+    }
+    
+    try {
+        $newUser = New-MgUser @userParams -ErrorAction Stop
+        Write-Host "  Neuer Benutzer erstellt: $displayName" -ForegroundColor Green
+        Write-Host "  UPN: $OnPremUPN" -ForegroundColor Cyan
+        Write-Host "  Temporäres Passwort: $password" -ForegroundColor Yellow
+        return $newUser
+    } catch {
+        Write-Error "Fehler beim Erstellen des Benutzers: $($_.Exception.Message)"
+        return $null
     }
 }
 
@@ -177,6 +217,7 @@ $connectParams = @{
     Scopes = @(
         "Application.ReadWrite.All"
         "User.Read.All"
+        "User.ReadWrite.All"
         "Directory.Read.All"
         "Mail.Send"
     )
@@ -296,8 +337,25 @@ if ($mode -match '^[Bb]') {
         Write-Host "  Suche Benutzer..." -ForegroundColor DarkGray
         $users = Search-TenantUser -SearchTerm $ownerInput
         if ($users.Count -eq 0) {
-            Write-Host "  Keine Benutzer gefunden. Bitte erneut versuchen." -ForegroundColor Yellow
-            continue
+            Write-Host "  Keine Benutzer gefunden." -ForegroundColor Yellow
+            $createNew = Read-Host "  Neuen Benutzer erstellen? [J/N] (ENTER = N)"
+            if ($createNew -match '^[JjYy]') {
+                $firstName = Read-Host "  Vorname"
+                $lastName = Read-Host "  Nachname"
+                $upn = Read-Host "  UPN (aus on-prem AD)"
+                $newUser = New-TenantUser -FirstName $firstName -LastName $lastName -OnPremUPN $upn
+                if ($newUser) {
+                    $ownerObj = $newUser
+                    $ownerUPN = $newUser.UserPrincipalName
+                    break
+                } else {
+                    Write-Host "  Erstellung fehlgeschlagen. Bitte erneut versuchen." -ForegroundColor Red
+                    continue
+                }
+            } else {
+                Write-Host "  Bitte erneut suchen." -ForegroundColor Yellow
+                continue
+            }
         }
         Write-Host "  Gefundene Benutzer:" -ForegroundColor Green
         for ($i = 0; $i -lt $users.Count; $i++) {
@@ -362,6 +420,20 @@ if ($allResults.Count -gt 1) {
     }
 }
 
+# Automatischer Export der Ergebnisse als CSV und JSON
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$exportCsv = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_$timestamp.csv"
+$exportJson = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_$timestamp.json"
+
+$allResults | Export-Csv -Path $exportCsv -NoTypeInformation -Delimiter ";" -Encoding UTF8BOM
+$allResults | ConvertTo-Json -Depth 10 | Out-File -FilePath $exportJson -Encoding UTF8
+
+Write-Host ""
+Write-Host "Skript-Ergebnisse exportiert:" -ForegroundColor Green
+Write-Host "  CSV:  $exportCsv"
+Write-Host "  JSON: $exportJson"
+Write-Host ""
+
 # E-Mail bei erfolgreichem Abschluss
 $created = @($allResults | Where-Object Status -eq "Erstellt")
 if ($created.Count -gt 0) {
@@ -390,11 +462,15 @@ if ($created.Count -gt 0) {
                 ToRecipients = @(
                     @{ EmailAddress = @{ Address = $recipientUPN } }
                 )
+                SaveToSentItems = $true
             }
-            Send-MgUserMail -UserId (Get-MgContext).Account -BodyParameter $message
+            Send-MgUserMail -UserId (Get-MgContext).Account -BodyParameter $message -ErrorAction Stop
             Write-Host "E-Mail gesendet an: $recipientUPN" -ForegroundColor Green
         } catch {
-            Write-Warning "E-Mail konnte nicht gesendet werden: $_"
+            Write-Error "E-Mail-Versand fehlgeschlagen: $($_.Exception.Message)"
+            if ($_.ErrorDetails.Message) {
+                Write-Error "Details: $($_.ErrorDetails.Message)"
+            }
         }
     }
 }

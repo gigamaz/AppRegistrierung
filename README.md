@@ -106,6 +106,13 @@ Das Script benötigt folgende Microsoft Graph Berechtigungen:
 - Owner-Suche: Wildcard-Suche mit Vorschlagsliste ab 3 Zeichen
 - E-Mail-Versand: Automatischer Versand bei erfolgreichen Erstellungen
 
+## Änderungen (Version 1.2)
+
+- **User-Erstellung**: Bei nicht gefundenem Owner kann ein neuer Benutzer erstellt werden (Vorname, Nachname, on-prem UPN, sicheres Passwort)
+- **Ergebnis-Export**: Automatischer Export der Skript-Ergebnisse als CSV und JSON (timestamped)
+- **Mail-Versand korrigiert**: `SaveToSentItems` aktiviert, detaillierte Fehlerausgabe bei Fehlern
+- **Berechtigungen erweitert**: Benötigt nun zusätzlich `User.ReadWrite.All` für User-Erstellung
+
 ## Bekannte Einschränkungen
 
 - E-Mail-Versand funktioniert nur mit `Mail.Send` Berechtigung
