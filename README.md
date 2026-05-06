@@ -14,6 +14,8 @@ PowerShell-Script zur Erstellung von Entra ID (ehemals Azure AD) App-Registrieru
 - **Redirect URI**: Optional im Einzelmodus erfassbar
 - **CSV-Export**: Nach jedem Lauf mit App-Name, App ID, Tenant ID und Owner
 - **Neue Benutzer**: UPN wird aus Name und Tenant-Domain des Tenants erzeugt, keine manuelle UPN-Eingabe mehr
+- **Neuer Benutzer**: Temporäres Passwort wird nur im CSV-Export gespeichert
+- **Benutzer-Template**: Bei neuer Benutzeranlage wird zusätzlich eine Markdown-Datei aus `template.md` erzeugt
 
 ## Voraussetzungen
 

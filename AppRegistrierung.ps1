@@ -87,6 +87,40 @@ function New-SecurePassword {
     return (-join ($chars | Sort-Object { Get-Random }))
 }
 
+function Write-UserTemplateDocument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$User,
+        [Parameter(Mandatory = $true)]
+        [string]$TenantAlias,
+        [Parameter(Mandatory = $true)]
+        [string]$TemporaryPassword
+    )
+
+    $templatePath = Join-Path $PSScriptRoot "template.md"
+    if (-not (Test-Path -LiteralPath $templatePath)) {
+        throw "template.md nicht gefunden: $templatePath"
+    }
+
+    $content = Get-Content -LiteralPath $templatePath -Raw
+    $displayName = if ($User.DisplayName) { $User.DisplayName } else { "" }
+    $mailNickname = if ($User.MailNickname) { $User.MailNickname } else { ($User.UserPrincipalName -split '@')[0] }
+    $safeName = $mailNickname -replace '[^a-zA-Z0-9._-]', '_'
+    $values = @($displayName, $mailNickname, $TenantAlias, $TenantAlias, $TemporaryPassword)
+    $parts = $content -split '%s', ($values.Count + 1)
+    $rendered = ""
+
+    for ($i = 0; $i -lt $values.Count; $i++) {
+        $rendered += $parts[$i] + $values[$i]
+    }
+    $rendered += $parts[$values.Count]
+
+    $outputPath = Join-Path (Get-Location) "Benutzer_${ScriptVersion}_${ScriptBuild}_${safeName}.md"
+    Set-Content -Path $outputPath -Value $rendered -Encoding UTF8
+
+    return $outputPath
+}
+
 function Get-AppRegistrationsByName {
     param([string]$DisplayName)
 
@@ -173,8 +207,10 @@ function New-TenantUser {
         Write-Host "  Neuer Benutzer erstellt: $displayName" -ForegroundColor Green
         Write-Host "  UPN: $userPrincipalName" -ForegroundColor Cyan
         Write-Host "  MailNickname: $mailNickname" -ForegroundColor Cyan
-        Write-Host "  Temporäres Passwort: $password" -ForegroundColor Yellow
-        return $newUser
+        return [PSCustomObject]@{
+            User = $newUser
+            TemporaryPassword = $password
+        }
     } catch {
         Write-Error "Fehler beim Erstellen des Benutzers: $($_.Exception.Message)"
         return $null
@@ -188,7 +224,9 @@ function New-EntraAppWithOwner {
         [string]$TenantId,
         [string]$Description    = "",
         [string]$SignInAudience = "AzureADMyOrg",
-        [string]$RedirectUri = ""
+        [string]$RedirectUri = "",
+        [string]$TemporaryPassword = "",
+        [string]$UserDocumentPath = ""
     )
 
     $result = [PSCustomObject]@{
@@ -196,6 +234,8 @@ function New-EntraAppWithOwner {
         Owner      = $OwnerUPN
         TenantId   = $TenantId
         RedirectUri = $RedirectUri
+        TemporaryPassword = $TemporaryPassword
+        UserDocumentPath = $UserDocumentPath
         Status     = "Fehler"
         AppId      = ""
         ObjectId   = ""
@@ -319,6 +359,7 @@ try {
     $tenantInfo = Get-TenantInfo
     $currentTenantId = if ($tenantInfo) { $tenantInfo.Id } else { (Get-MgContext).TenantId }
     $tenantDomain = if ($tenantInfo) { $tenantInfo.Domain } else { "" }
+    $tenantAlias = if ($tenantDomain) { ($tenantDomain -replace '\.onmicrosoft\.com$', '') -replace '\.de$', '' } else { "" }
     if ($tenantInfo) {
     Write-Host ""
     Write-Host "Verbunden mit Tenant:" -ForegroundColor Green
@@ -418,6 +459,8 @@ if ($mode -match '^[Bb]') {
 
     $redirectUri = Read-Host "Redirect URI (optional, Enter = Ueberspringen)"
     $redirectUri = $redirectUri.Trim()
+    $temporaryPassword = ""
+    $userDocumentPath = ""
 
     # Owner mit Wildcard-Suche
     $ownerObj = $null
@@ -435,10 +478,12 @@ if ($mode -match '^[Bb]') {
             if ($createNew -match '^[JjYy]') {
                 $firstName = Read-Host "  Vorname"
                 $lastName = Read-Host "  Nachname"
-                $newUser = New-TenantUser -FirstName $firstName -LastName $lastName -TenantDomain $tenantDomain
-                if ($newUser) {
-                    $ownerObj = $newUser
-                    $ownerUPN = $newUser.UserPrincipalName
+                $newUserResult = New-TenantUser -FirstName $firstName -LastName $lastName -TenantDomain $tenantDomain
+                if ($newUserResult) {
+                    $ownerObj = $newUserResult.User
+                    $ownerUPN = $newUserResult.User.UserPrincipalName
+                    $temporaryPassword = $newUserResult.TemporaryPassword
+                    $userDocumentPath = Write-UserTemplateDocument -User $newUserResult.User -TenantAlias $tenantAlias -TemporaryPassword $temporaryPassword
                     break
                 } else {
                     Write-Host "  Erstellung fehlgeschlagen. Bitte erneut versuchen." -ForegroundColor Red
@@ -453,16 +498,29 @@ if ($mode -match '^[Bb]') {
         for ($i = 0; $i -lt $users.Count; $i++) {
             Write-Host "    [$i] $($users[$i].DisplayName) - $($users[$i].UserPrincipalName)"
         }
-        $sel = Read-Host "  Auswahl (Nummer) oder neue Suche (Enter)"
+        $sel = Read-Host "  Auswahl (Nummer, UPN oder neue Suche per Enter)"
         if ([string]::IsNullOrWhiteSpace($sel)) { continue }
-        try {
-            $idx = [int]$sel
-            if ($idx -ge 0 -and $idx -lt $users.Count) {
-                $ownerObj = $users[$idx]
+        if ($sel -match '^[0-9]+$') {
+            try {
+                $idx = [int]$sel
+                if ($idx -ge 0 -and $idx -lt $users.Count) {
+                    $ownerObj = $users[$idx]
+                    break
+                }
+            } catch {
+                Write-Host "  Ungueltige Auswahl." -ForegroundColor Yellow
+            }
+        } else {
+            $directMatch = $users | Where-Object {
+                $_.UserPrincipalName -ieq $sel -or $_.Mail -ieq $sel -or $_.DisplayName -ieq $sel
+            } | Select-Object -First 1
+
+            if ($directMatch) {
+                $ownerObj = $directMatch
                 break
             }
-        } catch {
-            Write-Host "  Ungueltige Auswahl." -ForegroundColor Yellow
+
+            Write-Host "  Kein passender Benutzer fuer diese Eingabe gefunden." -ForegroundColor Yellow
         }
     }
     $ownerUPN = $ownerObj.UserPrincipalName
@@ -472,7 +530,7 @@ if ($mode -match '^[Bb]') {
 
     Write-Host ""
     Write-Host "Erstelle App-Registrierung..." -ForegroundColor Yellow
-    $r = New-EntraAppWithOwner -AppName $appName -OwnerUPN $ownerUPN -TenantId $currentTenantId -Description $description -RedirectUri $redirectUri
+    $r = New-EntraAppWithOwner -AppName $appName -OwnerUPN $ownerUPN -TenantId $currentTenantId -Description $description -RedirectUri $redirectUri -TemporaryPassword $temporaryPassword -UserDocumentPath $userDocumentPath
     $allResults.Add($r)
 }
 
@@ -508,7 +566,9 @@ $exportCsv = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_${ScriptVersion
     @{Name = 'App-Name'; Expression = { $_.AppName }},
     @{Name = 'App ID'; Expression = { $_.AppId }},
     @{Name = 'Tenant ID'; Expression = { $_.TenantId }},
-    @{Name = 'Owner'; Expression = { $_.Owner }}
+    @{Name = 'Owner'; Expression = { $_.Owner }},
+    @{Name = 'Temporary Password'; Expression = { $_.TemporaryPassword }},
+    @{Name = 'User Document'; Expression = { $_.UserDocumentPath }}
 ) | Export-Csv -Path $exportCsv -NoTypeInformation -Delimiter ";" -Encoding UTF8
 
 Write-Host ""
