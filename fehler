@@ -1,0 +1,6 @@
+C:\Users\xxx\PS\new-appreg.1.2.ps1 : Cannot validate argument on parameter 'Encoding'. The argument "UTF8BOM" does not belong to the set 
+"Unicode,UTF7,UTF8,ASCII,UTF32,BigEndianUnicode,Default,OEM" specified by the ValidateSet attribute. Supply an argument that is in the set and then try the command 
+again.
+    + CategoryInfo          : InvalidData: (:) [new-appreg.1.2.ps1], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationError,new-appreg.1.2.ps1
+ 
