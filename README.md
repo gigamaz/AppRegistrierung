@@ -86,6 +86,15 @@ Erforderliche Module (werden automatisch geladen):
 
 ## CSV-Format (Batch-Modus)
 
+Die CSV-Datei muss exakt diese Struktur haben:
+
+- Erste Zeile = Header
+- Pflichtspalten = `AppName` und `OwnerUPN`
+- Spaltennamen müssen genau so heißen, inklusive Groß-/Kleinschreibung
+- Jede Datenzeile muss mindestens diese zwei Werte enthalten
+- Trennzeichen = bevorzugt `;`, alternativ `,`
+- Optional dürfen `Description` und `SignInAudience` zusätzlich enthalten sein
+
 ### Pflichtfelder
 
 | Spalte | Beschreibung |
