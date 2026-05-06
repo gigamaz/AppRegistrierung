@@ -5,9 +5,9 @@ Stand: 2026-05-06
 ## Projektstatus
 
 - Branch: `master`
-- Remote-Stand: `origin/master` ist 1 Commit hinterher
-- Arbeitsbaum: Änderungen für Mail-Entfernung, CSV-Export und Redirect URI sind lokal vorbereitet
-- Letzter stabiler Commit: `2a19dd0` - `Fix export encoding for PowerShell 5.1`
+- Remote-Stand: `origin/master` ist 4 Commits hinterher
+- Arbeitsbaum: sauber, keine offenen Änderungen
+- Letzter Commit: `d931cb4` - `Remove mail flow and add redirect URI export`
 
 ## Projektkontext
 
