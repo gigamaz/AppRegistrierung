@@ -1,4 +1,4 @@
-#Requires -Modules Microsoft.Graph.Applications, Microsoft.Graph.Users, Microsoft.Graph.Users.Actions, Microsoft.Graph.Identity.DirectoryManagement
+#Requires -Modules Microsoft.Graph.Applications, Microsoft.Graph.Users, Microsoft.Graph.Identity.DirectoryManagement
 
 <#
 .SYNOPSIS
@@ -177,17 +177,21 @@ function New-EntraAppWithOwner {
     param(
         [string]$AppName,
         [string]$OwnerUPN,
+        [string]$TenantId,
         [string]$Description    = "",
-        [string]$SignInAudience = "AzureADMyOrg"
+        [string]$SignInAudience = "AzureADMyOrg",
+        [string]$RedirectUri = ""
     )
 
     $result = [PSCustomObject]@{
-        AppName  = $AppName
-        OwnerUPN = $OwnerUPN
-        Status   = "Fehler"
-        AppId    = ""
-        ObjectId = ""
-        Message  = ""
+        AppName    = $AppName
+        Owner      = $OwnerUPN
+        TenantId   = $TenantId
+        RedirectUri = $RedirectUri
+        Status     = "Fehler"
+        AppId      = ""
+        ObjectId   = ""
+        Message    = ""
     }
 
     # 1. Existenzpruefung App-Registrierung
@@ -221,6 +225,9 @@ function New-EntraAppWithOwner {
         }
         if ($Description) {
             $appParams["Notes"] = $Description
+        }
+        if ($RedirectUri) {
+            $appParams["Web"] = @{ RedirectUris = @($RedirectUri) }
         }
 
         $app = New-MgApplication @appParams -ErrorAction Stop
@@ -278,7 +285,6 @@ $connectParams = @{
         "User.Read.All"
         "User.ReadWrite.All"
         "Directory.Read.All"
-        "Mail.Send"
     )
     NoWelcome = $true
 }
@@ -303,6 +309,7 @@ try {
 }
 
 $tenantInfo = Get-TenantInfo
+$currentTenantId = if ($tenantInfo) { $tenantInfo.Id } else { (Get-MgContext).TenantId }
 if ($tenantInfo) {
     Write-Host ""
     Write-Host "Verbunden mit Tenant:" -ForegroundColor Green
@@ -387,6 +394,7 @@ if ($mode -match '^[Bb]') {
         $r = New-EntraAppWithOwner `
                 -AppName        $entry.AppName `
                 -OwnerUPN       $entry.OwnerUPN `
+                -TenantId       $currentTenantId `
                 -Description    $desc `
                 -SignInAudience $audience
 
@@ -398,7 +406,10 @@ if ($mode -match '^[Bb]') {
     # -- Einzel-Modus -----------------------------------------
     Write-Host ""
     $appName     = Read-Host "Name der App-Registrierung"
-    
+
+    $redirectUri = Read-Host "Redirect URI (optional, Enter = Ueberspringen)"
+    $redirectUri = $redirectUri.Trim()
+
     # Owner mit Wildcard-Suche
     $ownerObj = $null
     while ($null -eq $ownerObj) {
@@ -453,7 +464,7 @@ if ($mode -match '^[Bb]') {
 
     Write-Host ""
     Write-Host "Erstelle App-Registrierung..." -ForegroundColor Yellow
-    $r = New-EntraAppWithOwner -AppName $appName -OwnerUPN $ownerUPN -Description $description
+    $r = New-EntraAppWithOwner -AppName $appName -OwnerUPN $ownerUPN -TenantId $currentTenantId -Description $description -RedirectUri $redirectUri
     $allResults.Add($r)
 }
 
@@ -480,80 +491,23 @@ Write-Host "  Fehler       : $($failed.Count)"  -ForegroundColor Red
 Write-Host ""
 
 if ($allResults.Count -gt 1) {
-    $allResults | Format-Table -AutoSize -Property Status, AppName, AppId, OwnerUPN, Message
+    $allResults | Format-Table -AutoSize -Property Status, AppName, AppId, Owner, Message
 }
 
-if ($allResults.Count -gt 1) {
-    $exportChoice = Read-Host "Ergebnisse als CSV exportieren? [J/N]"
-    if ($exportChoice -match '^[JjYy]') {
-        $timestamp  = Get-Date -Format "yyyyMMdd_HHmmss"
-        $exportPath = Join-Path (Split-Path $csvPath -Parent) "Ergebnis_AppRegistrierung_$timestamp.csv"
-        $allResults | Export-Csv -Path $exportPath -NoTypeInformation -Delimiter ";" -Encoding UTF8
-        Write-Host "Ergebnisse gespeichert: $exportPath" -ForegroundColor Green
-    }
-}
-
-# Automatischer Export der Ergebnisse als CSV und JSON
+# Automatischer Export der Ergebnisse als CSV
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $exportCsv = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_$timestamp.csv"
-$exportJson = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_$timestamp.json"
-
-$allResults | Export-Csv -Path $exportCsv -NoTypeInformation -Delimiter ";" -Encoding UTF8
-$allResults | ConvertTo-Json -Depth 10 | Out-File -FilePath $exportJson -Encoding UTF8
+($allResults | Select-Object `
+    @{Name = 'App-Name'; Expression = { $_.AppName }},
+    @{Name = 'App ID'; Expression = { $_.AppId }},
+    @{Name = 'Tenant ID'; Expression = { $_.TenantId }},
+    @{Name = 'Owner'; Expression = { $_.Owner }}
+) | Export-Csv -Path $exportCsv -NoTypeInformation -Delimiter ";" -Encoding UTF8
 
 Write-Host ""
 Write-Host "Skript-Ergebnisse exportiert:" -ForegroundColor Green
 Write-Host "  CSV:  $exportCsv"
-Write-Host "  JSON: $exportJson"
 Write-Host ""
-
-# E-Mail bei erfolgreichem Abschluss
-$created = @($allResults | Where-Object Status -eq "Erstellt")
-if ($created.Count -gt 0) {
-    Write-Host ""
-    $sendMail = Read-Host "E-Mail mit Ergebnissen senden? [J/N] (ENTER = J)"
-    if ([string]::IsNullOrWhiteSpace($sendMail)) { $sendMail = "J" }
-    if ($sendMail -match '^[JjYy]') {
-        $recipientUPN = Read-Host "Empfaenger UPN (leer = angemeldeter Benutzer)"
-        if ([string]::IsNullOrWhiteSpace($recipientUPN)) {
-            $currentUser = Get-MgUser -UserId (Get-MgContext).Account
-            $recipientUPN = $currentUser.UserPrincipalName
-        }
-        
-        $mailBody = "App-Registrierungen erfolgreich erstellt:`n`n"
-        foreach ($item in $created) {
-            $mailBody += "- $($item.AppName) (AppId: $($item.AppId))`n"
-        }
-        
-        try {
-            $senderUPN = (Get-MgContext).Account
-            if ([string]::IsNullOrWhiteSpace($senderUPN)) {
-                throw "Kein angemeldeter Benutzer im Graph-Kontext gefunden."
-            }
-
-            $message = @{
-                message = @{
-                    subject = "App-Registrierung abgeschlossen - $($created.Count) App(s) erstellt"
-                    body = @{
-                        contentType = "Text"
-                        content = $mailBody
-                    }
-                    toRecipients = @(
-                        @{ emailAddress = @{ address = $recipientUPN } }
-                    )
-                }
-                saveToSentItems = $true
-            }
-            Send-MgUserMail -UserId $senderUPN -BodyParameter $message -ErrorAction Stop
-            Write-Host "E-Mail gesendet an: $recipientUPN" -ForegroundColor Green
-        } catch {
-            Write-Error "E-Mail-Versand fehlgeschlagen: $($_.Exception.Message)"
-            if ($_.ErrorDetails.Message) {
-                Write-Error "Details: $($_.ErrorDetails.Message)"
-            }
-        }
-    }
-}
 
 Disconnect-MgGraph
 Write-Host ""

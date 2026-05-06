@@ -6,8 +6,8 @@ Stand: 2026-05-06
 
 - Branch: `master`
 - Remote-Stand: `origin/master` ist 1 Commit hinterher
-- Arbeitsbaum: sauber, keine offenen Änderungen
-- Letzter Commit: `d88ce14` - `Fix runtime issues in user creation and mail sending`
+- Arbeitsbaum: Änderungen für Mail-Entfernung, CSV-Export und Redirect URI sind lokal vorbereitet
+- Letzter stabiler Commit: `2a19dd0` - `Fix export encoding for PowerShell 5.1`
 
 ## Projektkontext
 
@@ -24,17 +24,18 @@ Stand: 2026-05-06
 - Owner-Suche per Wildcard/Suche über Graph
 - Neuer Benutzer kann bei fehlendem Owner angelegt werden
 - App-Registrierung wird erstellt und Owner wird zugewiesen
-- Ergebnisse werden als CSV und JSON exportiert
-- Optionaler Mail-Versand nach erfolgreicher Erstellung
+- Ergebnisse werden nach jedem Lauf als CSV exportiert
+- Optional kann im Einzelmodus eine Redirect URI erfasst werden
 
 ## Relevante Details
 
-- `AppRegistrierung.ps1` nutzt Microsoft Graph Module für Applications, Users, Users.Actions und DirectoryManagement.
-- Pflicht-Scopes im Skript: `Application.ReadWrite.All`, `User.Read.All`, `User.ReadWrite.All`, `Directory.Read.All`, `Mail.Send`.
+- `AppRegistrierung.ps1` nutzt Microsoft Graph Module für Applications, Users und DirectoryManagement.
+- Pflicht-Scopes im Skript: `Application.ReadWrite.All`, `User.Read.All`, `User.ReadWrite.All`, `Directory.Read.All`.
 - Batch-Import akzeptiert `;` und fallbackweise `,` als Trennzeichen.
-- Export-Dateien landen aktuell im Arbeitsverzeichnis bzw. im CSV-Ordner.
+- Export-Dateien landen aktuell im Arbeitsverzeichnis.
 - App-Namen werden vor der Erstellung jetzt per Vorab-Abfrage geprüft; vorhandene Apps werden als `Uebersprungen` markiert statt den Ablauf abzubrechen.
 - Die GitHub-Fehlerdatei zeigt einen PowerShell-5.1-Fehler bei `Export-Csv -Encoding UTF8BOM`; das Script nutzt jetzt `UTF8` für Kompatibilität.
+- Die Mailfunktion ist entfernt.
 
 ## Nächster Einstiegspunkt
 
