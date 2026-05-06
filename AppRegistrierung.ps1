@@ -141,12 +141,19 @@ function New-TenantUser {
     param(
         [string]$FirstName,
         [string]$LastName,
-        [string]$OnPremUPN
+        [string]$TenantDomain
     )
     
     $displayName = "$LastName $FirstName (Admin)"
     $password = New-SecurePassword -Length 16
-    $mailNickname = Get-MailNickname -UserPrincipalName $OnPremUPN
+    $mailNickname = Get-MailNickname -UserPrincipalName "$FirstName.$LastName"
+    $mailNickname = $mailNickname.ToLowerInvariant()
+
+    if ([string]::IsNullOrWhiteSpace($TenantDomain)) {
+        throw "Keine Tenant-Domain verfuegbar, UPN kann nicht automatisch erzeugt werden."
+    }
+
+    $userPrincipalName = "$mailNickname@$TenantDomain"
     
     $passwordProfile = @{
         Password = $password
@@ -155,7 +162,7 @@ function New-TenantUser {
     
     $userParams = @{
         DisplayName       = $displayName
-        UserPrincipalName = $OnPremUPN
+        UserPrincipalName = $userPrincipalName
         MailNickname      = $mailNickname
         AccountEnabled    = $true
         PasswordProfile   = $passwordProfile
@@ -164,7 +171,7 @@ function New-TenantUser {
     try {
         $newUser = New-MgUser @userParams -ErrorAction Stop
         Write-Host "  Neuer Benutzer erstellt: $displayName" -ForegroundColor Green
-        Write-Host "  UPN: $OnPremUPN" -ForegroundColor Cyan
+        Write-Host "  UPN: $userPrincipalName" -ForegroundColor Cyan
         Write-Host "  MailNickname: $mailNickname" -ForegroundColor Cyan
         Write-Host "  Temporäres Passwort: $password" -ForegroundColor Yellow
         return $newUser
@@ -309,9 +316,10 @@ try {
     exit 1
 }
 
-$tenantInfo = Get-TenantInfo
-$currentTenantId = if ($tenantInfo) { $tenantInfo.Id } else { (Get-MgContext).TenantId }
-if ($tenantInfo) {
+    $tenantInfo = Get-TenantInfo
+    $currentTenantId = if ($tenantInfo) { $tenantInfo.Id } else { (Get-MgContext).TenantId }
+    $tenantDomain = if ($tenantInfo) { $tenantInfo.Domain } else { "" }
+    if ($tenantInfo) {
     Write-Host ""
     Write-Host "Verbunden mit Tenant:" -ForegroundColor Green
     Write-Host "  Name   : $($tenantInfo.DisplayName)"
@@ -427,8 +435,10 @@ if ($mode -match '^[Bb]') {
             if ($createNew -match '^[JjYy]') {
                 $firstName = Read-Host "  Vorname"
                 $lastName = Read-Host "  Nachname"
-                $upn = Read-Host "  UPN (aus on-prem AD)"
-                $newUser = New-TenantUser -FirstName $firstName -LastName $lastName -OnPremUPN $upn
+                if ([string]::IsNullOrWhiteSpace($tenantDomain)) {
+                    $tenantDomain = Read-Host "  Tenant-Domain fuer den neuen Benutzer"
+                }
+                $newUser = New-TenantUser -FirstName $firstName -LastName $lastName -TenantDomain $tenantDomain
                 if ($newUser) {
                     $ownerObj = $newUser
                     $ownerUPN = $newUser.UserPrincipalName
