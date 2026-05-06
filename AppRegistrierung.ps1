@@ -26,7 +26,8 @@
 param()
 
 $ErrorActionPreference = "Stop"
-$ScriptVersion = "1.2"
+$ScriptVersion = "1.3"
+$ScriptBuild = Get-Date -Format "yyyyMMdd_HHmmss"
 
 # ==============================================================
 # Hilfsfunktionen
@@ -266,7 +267,7 @@ function New-EntraAppWithOwner {
 Write-Host ""
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host "  Entra ID App-Registrierung - Verwaltungstool" -ForegroundColor Cyan
-Write-Host "  Version $ScriptVersion" -ForegroundColor Cyan
+Write-Host "  Version $ScriptVersion (Build $ScriptBuild)" -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -495,8 +496,7 @@ if ($allResults.Count -gt 1) {
 }
 
 # Automatischer Export der Ergebnisse als CSV
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$exportCsv = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_$timestamp.csv"
+$exportCsv = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_${ScriptVersion}_${ScriptBuild}.csv"
 ($allResults | Select-Object `
     @{Name = 'App-Name'; Expression = { $_.AppName }},
     @{Name = 'App ID'; Expression = { $_.AppId }},

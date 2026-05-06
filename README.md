@@ -117,6 +117,11 @@ Das Script benötigt folgende Microsoft Graph Berechtigungen:
 - **Redirect URI**: Optionale Redirect URI im Einzelmodus
 - **Berechtigungen erweitert**: Benötigt nun zusätzlich `User.ReadWrite.All` für User-Erstellung
 
+## Versionierung
+
+- Jede Ausführung erzeugt eine Buildnummer im Format `yyyyMMdd_HHmmss`
+- Diese Buildnummer steht im Skriptbanner und im Export-Dateinamen
+
 ## Bekannte Einschränkungen
 
 - Batch-Modus erfordert korrektes CSV-Format (Semikolon oder Komma)

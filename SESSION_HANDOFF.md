@@ -26,6 +26,7 @@ Stand: 2026-05-06
 - App-Registrierung wird erstellt und Owner wird zugewiesen
 - Ergebnisse werden nach jedem Lauf als CSV exportiert
 - Optional kann im Einzelmodus eine Redirect URI erfasst werden
+- Das Skript zeigt jetzt zusätzlich eine Buildnummer im Format `yyyyMMdd_HHmmss` an und nutzt sie im Export-Dateinamen
 
 ## Relevante Details
 
