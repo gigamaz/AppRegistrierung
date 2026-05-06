@@ -89,9 +89,9 @@ function New-TenantUser {
     # Sicheres Passwort generieren (Groß-, Kleinbuchstaben, Zahlen)
     $chars = @([char[]](65..90) + [char[]](97..122) + [char[]](48..57))
     $password = -join (1..16 | ForEach-Object { $chars | Get-Random })
-    if ($password -notmatch '[A-Z]') { $password = $chars[0..25 | Get-Random] + $password }
-    if ($password -notmatch '[a-z]') { $password = $password.Insert(1, $chars[26..51 | Get-Random]) }
-    if ($password -notmatch '[0-9]') { $password = $password.Insert(2, $chars[52..61 | Get-Random]) }
+    if ($password -notmatch '[A-Z]') { $password = ($chars[0..25] | Get-Random) + $password }
+    if ($password -notmatch '[a-z]') { $password = $password.Insert(1, ($chars[26..51] | Get-Random)) }
+    if ($password -notmatch '[0-9]') { $password = $password.Insert(2, ($chars[52..61] | Get-Random)) }
     
     $passwordProfile = @{
         Password = $password
@@ -308,8 +308,16 @@ if ($mode -match '^[Bb]') {
         $i++
         Write-Host "[$i/$($entries.Count)] $($entry.AppName)" -ForegroundColor White
 
-        $desc     = if ($entry.PSObject.Properties["Description"])    { $entry.Description }   else { "" }
-        $audience = if ($entry.PSObject.Properties["SignInAudience"]) { $entry.SignInAudience } else { "AzureADMyOrg" }
+        if ($entry.PSObject.Properties.Name -contains "Description" -and $entry.Description) {
+            $desc = $entry.Description
+        } else {
+            $desc = ""
+        }
+        if ($entry.PSObject.Properties.Name -contains "SignInAudience" -and $entry.SignInAudience) {
+            $audience = $entry.SignInAudience
+        } else {
+            $audience = "AzureADMyOrg"
+        }
 
         $r = New-EntraAppWithOwner `
                 -AppName        $entry.AppName `
