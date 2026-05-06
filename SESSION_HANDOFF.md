@@ -28,7 +28,7 @@ Stand: 2026-05-06
 - Optional kann im Einzelmodus eine Redirect URI erfasst werden
 - Das Skript zeigt jetzt zusätzlich eine Buildnummer im Format `yyyyMMdd_HHmmss` an und nutzt sie im Export-Dateinamen
 - Nach dem Export wird der vollständige Pfad der CSV-Datei ausgegeben
-- Bei neuer Benutzeranlage wird der UPN aus Name und Tenant-Domain erzeugt; eine manuelle UPN-Eingabe ist entfernt
+- Bei neuer Benutzeranlage wird der UPN aus Name und Tenant-Domain des Tenants erzeugt; eine manuelle UPN-Eingabe ist entfernt
 
 ## Relevante Details
 

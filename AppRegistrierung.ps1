@@ -435,9 +435,6 @@ if ($mode -match '^[Bb]') {
             if ($createNew -match '^[JjYy]') {
                 $firstName = Read-Host "  Vorname"
                 $lastName = Read-Host "  Nachname"
-                if ([string]::IsNullOrWhiteSpace($tenantDomain)) {
-                    $tenantDomain = Read-Host "  Tenant-Domain fuer den neuen Benutzer"
-                }
                 $newUser = New-TenantUser -FirstName $firstName -LastName $lastName -TenantDomain $tenantDomain
                 if ($newUser) {
                     $ownerObj = $newUser
