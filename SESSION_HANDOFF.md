@@ -30,7 +30,7 @@ Stand: 2026-05-06
 - Nach dem Export wird der vollständige Pfad der CSV-Datei ausgegeben
 - Bei neuer Benutzeranlage wird der UPN aus Name und Tenant-Domain des Tenants erzeugt; eine manuelle UPN-Eingabe ist entfernt
 - Das temporäre Passwort neuer Benutzer landet jetzt nur noch im CSV-Export, nicht mehr auf der Konsole
-- Bei neuer Benutzeranlage wird zusätzlich eine Markdown-Datei aus `template.md` erzeugt und analog zum CSV benannt
+- Bei neuer Benutzeranlage wird zusätzlich eine modernisierte Markdown-Datei aus `template.md` erzeugt und analog zum CSV benannt
 - Wenn `template.md` lokal fehlt, fragt das Script vor dem Lauf nach einer Fortsetzungsbestätigung
 
 ## Relevante Details

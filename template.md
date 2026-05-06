@@ -1,20 +1,21 @@
-Einrichtung Cloud-Kennung für M365 / Entra ID
+# Einrichtung abgeschlossen
 
 Hallo Herr %s,
 
-soeben wurde Ihre Kennung "%s@%s.onmicrosoft.com" für den Azure Tenant "%s.de" eingerichtet.
+Ihr Konto `%s@%s.onmicrosoft.com` für den Tenant `%s.de` wurde erfolgreich eingerichtet.
 
-Der Link zum Abruf Ihres Passworts für die erste Anmeldung lautet:
+## Passwort abrufen
 
 %s
 
+## Nächste Schritte
 
-Bei der ersten Anmeldung muss dieses Kennwort geändert werden. Anschließend das Konto mit einer Multifaktor-Authentifizierung absichert werden.
-________________________________________
-Microsoft Login:
-https://login.microsoftonline.com/
+- Beim ersten Anmelden das Kennwort ändern
+- Danach MFA direkt einrichten
 
-Setup für MFA:
-https://aka.ms/mfasetup
+## Links
 
-Erfahrungsgemäß funktioniert dieses initiale Setup im Anonym/Privaten-Modus Ihres Web-Browsers.  Wenn Sie dabei weitere Unterstützung benötigen, stehe ich natürlich gerne zur Verfügung.
+- Microsoft Login: https://login.microsoftonline.com/
+- MFA Setup: https://aka.ms/mfasetup
+
+Hinweis: Das initiale Setup funktioniert erfahrungsgemäß am besten im privaten Browser-Modus.
