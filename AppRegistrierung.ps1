@@ -488,7 +488,7 @@ if ($allResults.Count -gt 1) {
     if ($exportChoice -match '^[JjYy]') {
         $timestamp  = Get-Date -Format "yyyyMMdd_HHmmss"
         $exportPath = Join-Path (Split-Path $csvPath -Parent) "Ergebnis_AppRegistrierung_$timestamp.csv"
-        $allResults | Export-Csv -Path $exportPath -NoTypeInformation -Delimiter ";" -Encoding UTF8BOM
+        $allResults | Export-Csv -Path $exportPath -NoTypeInformation -Delimiter ";" -Encoding UTF8
         Write-Host "Ergebnisse gespeichert: $exportPath" -ForegroundColor Green
     }
 }
@@ -498,7 +498,7 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $exportCsv = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_$timestamp.csv"
 $exportJson = Join-Path (Get-Location) "AppRegistrierung_Ergebnis_$timestamp.json"
 
-$allResults | Export-Csv -Path $exportCsv -NoTypeInformation -Delimiter ";" -Encoding UTF8BOM
+$allResults | Export-Csv -Path $exportCsv -NoTypeInformation -Delimiter ";" -Encoding UTF8
 $allResults | ConvertTo-Json -Depth 10 | Out-File -FilePath $exportJson -Encoding UTF8
 
 Write-Host ""

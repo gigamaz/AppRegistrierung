@@ -34,6 +34,7 @@ Stand: 2026-05-06
 - Batch-Import akzeptiert `;` und fallbackweise `,` als Trennzeichen.
 - Export-Dateien landen aktuell im Arbeitsverzeichnis bzw. im CSV-Ordner.
 - App-Namen werden vor der Erstellung jetzt per Vorab-Abfrage geprüft; vorhandene Apps werden als `Uebersprungen` markiert statt den Ablauf abzubrechen.
+- Die GitHub-Fehlerdatei zeigt einen PowerShell-5.1-Fehler bei `Export-Csv -Encoding UTF8BOM`; das Script nutzt jetzt `UTF8` für Kompatibilität.
 
 ## Nächster Einstiegspunkt
 
