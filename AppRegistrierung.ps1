@@ -64,6 +64,11 @@ function Get-MailNickname {
     param([string]$UserPrincipalName)
 
     $mailNickname = ($UserPrincipalName -split '@')[0]
+    $mailNickname = $mailNickname `
+        .Replace('Ä', 'Ae').Replace('ä', 'ae') `
+        .Replace('Ö', 'Oe').Replace('ö', 'oe') `
+        .Replace('Ü', 'Ue').Replace('ü', 'ue') `
+        .Replace('ß', 'ss')
     $mailNickname = $mailNickname -replace '[^a-zA-Z0-9._-]', ''
 
     if ([string]::IsNullOrWhiteSpace($mailNickname)) {
