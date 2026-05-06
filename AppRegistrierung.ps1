@@ -86,11 +86,15 @@ function New-SecurePassword {
     return (-join ($chars | Sort-Object { Get-Random }))
 }
 
-function Test-AppRegistrationExists {
+function Get-AppRegistrationsByName {
     param([string]$DisplayName)
-    $escaped = $DisplayName -replace "'", "''"
-    $existing = Get-MgApplication -Filter "displayName eq '$escaped'" -ErrorAction SilentlyContinue
-    return ($null -ne $existing -and @($existing).Count -gt 0)
+
+    try {
+        $escaped = $DisplayName -replace "'", "''"
+        return @(Get-MgApplication -Filter "displayName eq '$escaped'" -All -Property Id,AppId,DisplayName -ErrorAction Stop)
+    } catch {
+        return @()
+    }
 }
 
 function Get-TenantUser {
@@ -187,9 +191,13 @@ function New-EntraAppWithOwner {
     }
 
     # 1. Existenzpruefung App-Registrierung
-    if (Test-AppRegistrationExists -DisplayName $AppName) {
+    $existingApps = Get-AppRegistrationsByName -DisplayName $AppName
+    if ($existingApps.Count -gt 0) {
+        $existingApp = $existingApps | Select-Object -First 1
         $result.Status  = "Uebersprungen"
         $result.Message = "App-Registrierung '$AppName' existiert bereits."
+        $result.AppId   = $existingApp.AppId
+        $result.ObjectId = $existingApp.Id
         Write-Warning "  [$AppName] $($result.Message)"
         return $result
     }

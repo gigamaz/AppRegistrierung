@@ -37,6 +37,11 @@ Erforderliche Module (werden automatisch geladen):
 .\AppRegistrierung.ps1
 ```
 
+## Fortsetzung
+
+- Der aktuelle Arbeitsstand steht in `SESSION_HANDOFF.md`.
+- Die nächsten konkreten Schritte stehen in `NEXT_STEPS.md`.
+
 ## Ablauf
 
 ### 1. Authentifizierung (Voreinstellung: Interaktiv)
